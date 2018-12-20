@@ -27,19 +27,19 @@
 use std::default::Default;
 use std::{error, fmt};
 
-use crypto::digest::Digest;
+// use bitcoin_hashes::digest::Digest;
 #[cfg(feature = "serde")] use serde;
 
 use blockdata::opcodes;
 use consensus::encode::{Decodable, Encodable};
 use consensus::encode::{self, Decoder, Encoder};
-use util::hash::Hash160;
+use bitcoin_hashes::hash160;
+use bitcoin_hashes::Hash;
 #[cfg(feature="bitcoinconsensus")] use bitcoinconsensus;
 #[cfg(feature="bitcoinconsensus")] use std::convert;
-#[cfg(feature="bitcoinconsensus")] use util::hash::Sha256dHash;
+#[cfg(feature="bitcoinconsensus")] use bitcoin_hashes::sha256d;
 
-#[cfg(feature="fuzztarget")]      use fuzz_util::sha2::Sha256;
-#[cfg(not(feature="fuzztarget"))] use crypto::sha2::Sha256;
+use bitcoin_hashes::sha256;
 
 #[derive(Clone, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
 /// A Bitcoin script
@@ -163,7 +163,7 @@ pub enum Error {
     BitcoinConsensus(bitcoinconsensus::Error),
     #[cfg(feature="bitcoinconsensus")]
     /// Can not find the spent transaction
-    UnknownSpentTransaction(Sha256dHash),
+    UnknownSpentTransaction(sha256d::Hash),
     #[cfg(feature="bitcoinconsensus")]
     /// The spent transaction does not have the referred output
     WrongSpentOutputIndex(usize),
@@ -305,7 +305,7 @@ impl Script {
     /// Compute the P2SH output corresponding to this redeem script
     pub fn to_p2sh(&self) -> Script {
         Builder::new().push_opcode(opcodes::All::OP_HASH160)
-                      .push_slice(&Hash160::from_data(&self.0)[..])
+                      .push_slice(&hash160::Hash::hash(&self.0)[..])
                       .push_opcode(opcodes::All::OP_EQUAL)
                       .into_script()
     }
@@ -313,12 +313,8 @@ impl Script {
     /// Compute the P2WSH output corresponding to this witnessScript (aka the "witness redeem
     /// script")
     pub fn to_v0_p2wsh(&self) -> Script {
-        let mut tmp = [0; 32];
-        let mut sha2 = Sha256::new();
-        sha2.input(&self.0);
-        sha2.result(&mut tmp);
         Builder::new().push_int(0)
-                      .push_slice(&tmp)
+                      .push_slice(&sha256::Hash::hash(&self.0)[..])
                       .into_script()
     }
 
