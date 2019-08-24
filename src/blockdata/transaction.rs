@@ -408,7 +408,7 @@ impl Transaction {
     /// Verify that this transaction is able to spend its inputs
     /// The lambda spent should not return the same TxOut twice!
     pub fn verify<S>(&self, mut spent: S) -> Result<(), script::Error>
-        where S: FnMut(&OutPoint) -> Option<TxOut> {
+        where S: FnMut(&OutPoint) -> Option<&TxOut> {
         let tx = serialize(&*self);
         for (idx, input) in self.input.iter().enumerate() {
             if let Some(output) = spent(&input.previous_output) {
@@ -1131,10 +1131,7 @@ mod tests {
         let mut spent3 = spent.clone();
 
         spending.verify(|point: &OutPoint| {
-            if let Some(tx) = spent.remove(&point.txid) {
-                return tx.output.get(point.vout as usize).cloned();
-            }
-            None
+            spent.remove(point.txid).map(|tx| tx.output.get(point.vout as usize))
         }).unwrap();
 
         // test that we fail with repeated use of same input
